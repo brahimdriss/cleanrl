@@ -44,9 +44,9 @@ class Args:
 
     env_id: str = "MinAtar/Freeway-v1"
     """the id of the environment"""
-    total_timesteps: int = 10000000
+    total_timesteps: int = 5000000
     """total timesteps of the experiments"""
-    learning_rate: float = 0.0001
+    learning_rate: float = 0.00025
     """the learning rate of the optimizer"""
     num_envs: int = 1
     """the number of parallel game environments"""
@@ -80,9 +80,9 @@ class Args:
     """epsilon parameter for prioritized replay buffer"""
     n_atoms: int = 51
     """the number of atoms"""
-    v_min: float = -5
+    v_min: float = -100
     """the return lower bound"""
-    v_max: float = 5
+    v_max: float = 100
     """the return upper bound"""
 
 

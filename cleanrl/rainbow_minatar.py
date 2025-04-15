@@ -512,7 +512,8 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                     q_values = (pred_dist * q_network.support).sum(dim=1)  # [B]
                     writer.add_scalar("losses/q_values", q_values.mean().item(), global_step)
                     sps = int(global_step / (time.time() - start_time))
-                    print("SPS:", sps)
+                    if global_step % 5000 == 0:
+                        print("SPS:", sps)
                     writer.add_scalar("charts/SPS", sps, global_step)
                     writer.add_scalar("charts/beta", rb.beta, global_step)
 

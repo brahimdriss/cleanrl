@@ -526,6 +526,39 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
             if global_step % args.target_network_frequency == 0:
                 for target_param, param in zip(target_network.parameters(), q_network.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1.0 - args.tau) * target_param.data)
+            
+            
+            eval_freq = 50000
+            num_eval_episodes = 25
+            if global_step % eval_freq == 0:
+                q_network.eval() 
+                eval_env = gym.make(args.env_id)
+                eval_rewards = []
+                
+                for _ in range(num_eval_episodes):
+                    eval_obs, _ = eval_env.reset(seed=args.seed)
+                    eval_done = False
+                    eval_total_reward = 0
+                    
+                    while not eval_done:
+                        with torch.no_grad():
+                            eval_q_dist = q_network(torch.Tensor(eval_obs).unsqueeze(0).to(device))
+                            eval_q_values = torch.sum(eval_q_dist * q_network.support, dim=2)
+                            eval_action = torch.argmax(eval_q_values, dim=1).cpu().numpy()[0]
+                        
+                        eval_obs, eval_reward, eval_terminated, eval_truncated, _ = eval_env.step(eval_action)
+                        eval_done = eval_terminated or eval_truncated
+                        eval_total_reward += eval_reward
+                    
+                    eval_rewards.append(eval_total_reward)
+                
+                mean_eval_reward = np.mean(eval_rewards)
+                print(f"Step {global_step}: Mean evaluation reward: {mean_eval_reward:.2f}")
+                writer.add_scalar("charts/eval_reward", mean_eval_reward, global_step)
+                
+                eval_env.close()
+                q_network.train()
+                
 
     envs.close()
     writer.close()

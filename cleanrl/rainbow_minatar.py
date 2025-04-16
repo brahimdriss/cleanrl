@@ -94,7 +94,9 @@ def make_env(env_id, seed, idx, capture_video, run_name):
         else:
             env = gym.make(env_id)
 
+        env = gym.wrappers.TimeLimit(env, 5000)
         env = gym.wrappers.RecordEpisodeStatistics(env)
+        
 
         # env = NoopResetEnv(env, noop_max=30)
         # env = MaxAndSkipEnv(env, skip=4)

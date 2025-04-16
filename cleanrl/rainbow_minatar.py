@@ -536,7 +536,7 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
                 eval_rewards = []
                 
                 for _ in range(num_eval_episodes):
-                    eval_obs, _ = eval_env.reset(seed=args.seed)
+                    eval_obs, _ = eval_env.reset()
                     eval_done = False
                     eval_total_reward = 0
                     

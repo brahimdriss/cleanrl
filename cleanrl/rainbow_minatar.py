@@ -86,6 +86,27 @@ class Args:
     v_max: float = 100
     """the return upper bound"""
 
+class ChannelFirstWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        old_shape = env.observation_space.shape
+        self.observation_space = gym.spaces.Box(
+            low=0,
+            high=1,
+            shape=(old_shape[2], old_shape[0], old_shape[1]),  # HWC -> CHW
+            dtype=np.float32
+        )
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        return self._convert_obs(obs), info 
+
+    def step(self, action):
+        obs, reward, term, trunc, info = self.env.step(action)
+        return self._convert_obs(obs), reward, term, trunc, info
+
+    def _convert_obs(self, obs):
+        return np.transpose(obs, (2, 0, 1))
 
 def make_env(env_id, seed, idx, capture_video, run_name):
     def thunk():
@@ -97,6 +118,7 @@ def make_env(env_id, seed, idx, capture_video, run_name):
 
         env = gym.wrappers.TimeLimit(env, 5000)
         env = gym.wrappers.RecordEpisodeStatistics(env)
+        env = ChannelFirstWrapper(env)
         
 
         # env = NoopResetEnv(env, noop_max=30)
@@ -173,13 +195,24 @@ class NoisyDuelingDistributionalNetwork(nn.Module):
         )
         
         # Calculate the output size of the convolutional layer
-        conv_output_size = 16 * (obs_shape[1] - 2) * (obs_shape[2] - 2)
+        conv_output_size = self._get_conv_output_size(obs_shape)
         
-        self.value_head = nn.Sequential(NoisyLinear(conv_output_size, 128), nn.ReLU(), NoisyLinear(128, n_atoms))
+        self.value_head = nn.Sequential(
+            NoisyLinear(conv_output_size, 128), 
+            nn.ReLU(), 
+            NoisyLinear(128, n_atoms)
+        )
         
         self.advantage_head = nn.Sequential(
-            NoisyLinear(conv_output_size, 128), nn.ReLU(), NoisyLinear(128, n_atoms * self.n_actions)
+            NoisyLinear(conv_output_size, 128), 
+            nn.ReLU(), 
+            NoisyLinear(128, n_atoms * self.n_actions)
         )
+
+    def _get_conv_output_size(self, shape):
+        x = torch.zeros(1, *shape)
+        x = self.network(x)
+        return x.shape[1]
     
     def forward(self, x):
         h = self.network(x)
@@ -535,8 +568,10 @@ poetry run pip install "stable_baselines3==2.0.0a1" "gymnasium[atari,accept-rom-
             eval_freq = 50000
             num_eval_episodes = 25
             if global_step % eval_freq == 0:
-                q_network.eval() 
+                q_network.eval()              
                 eval_env = gym.make(args.env_id)
+                eval_env = gym.wrappers.TimeLimit(eval_env, 5000)
+                eval_env = ChannelFirstWrapper(eval_env)
                 eval_rewards = []
                 
                 for _ in range(num_eval_episodes):
